@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lochness/core/theme/app_theme.dart';
 import 'package:lochness/data/models/circle_invite.dart';
+import 'package:lochness/data/models/geofence_event.dart';
 import 'package:lochness/data/models/location_share.dart';
 
 void main() {
@@ -61,5 +62,24 @@ void main() {
 
   test('CircleInvite.isActive is true below the use cap', () {
     expect(invite(maxUses: 3, useCount: 2).isActive, isTrue);
+  });
+
+  test('GeofenceEvent.isArrival reflects the event_type', () {
+    final arrival = GeofenceEvent(
+      id: 'event-1',
+      placeId: 'place-1',
+      userId: 'user-1',
+      eventType: 'arrival',
+      occurredAt: DateTime(2024, 1, 1),
+    );
+    final departure = GeofenceEvent(
+      id: 'event-2',
+      placeId: 'place-1',
+      userId: 'user-1',
+      eventType: 'departure',
+      occurredAt: DateTime(2024, 1, 1),
+    );
+    expect(arrival.isArrival, isTrue);
+    expect(departure.isArrival, isFalse);
   });
 }

@@ -4,12 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/circle.dart';
 import '../data/models/circle_invite.dart';
 import '../data/models/live_location.dart';
+import '../data/models/place.dart';
 import '../data/models/profile.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/circle_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/place_repository.dart';
-import '../services/geofence_service.dart';
+import '../services/geofence_notification_listener.dart';
 import '../services/location_tracking_service.dart';
 import '../services/notification_service.dart';
 
@@ -41,11 +42,21 @@ final locationTrackingServiceProvider = Provider<LocationTrackingService>((ref) 
   return LocationTrackingService(ref.watch(locationRepositoryProvider));
 });
 
-final geofenceServiceProvider = Provider<GeofenceService>((ref) {
-  return GeofenceService(
-    ref.watch(placeRepositoryProvider),
-    ref.watch(notificationServiceProvider),
-  );
+/// Starts listening for other circle members' arrival/departure events as
+/// soon as something watches this provider (see [HomeShell]), and tears the
+/// subscription down when nothing does (e.g. after sign-out).
+final geofenceNotificationListenerProvider = Provider.autoDispose<GeofenceNotificationListener?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return null;
+
+  final listener = GeofenceNotificationListener(
+    placeRepository: ref.watch(placeRepositoryProvider),
+    authRepository: ref.watch(authRepositoryProvider),
+    notificationService: ref.watch(notificationServiceProvider),
+    currentUserId: userId,
+  )..start();
+  ref.onDispose(listener.stop);
+  return listener;
 });
 
 /// Emits the current Supabase auth user, or null when signed out.
@@ -80,4 +91,8 @@ final circleMembersProvider = FutureProvider.family<List<Profile>, String>((ref,
 
 final circleInvitesProvider = FutureProvider.family<List<CircleInvite>, String>((ref, circleId) {
   return ref.watch(circleRepositoryProvider).fetchInvites(circleId);
+});
+
+final placesProvider = FutureProvider.family<List<Place>, String>((ref, circleId) {
+  return ref.watch(placeRepositoryProvider).fetchPlaces(circleId);
 });

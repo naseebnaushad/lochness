@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/providers.dart';
+
 /// Bottom-nav shell wrapping the three main tabs: Map, Circles, Share.
-class HomeShell extends StatelessWidget {
+/// Also keeps [geofenceNotificationListenerProvider] alive for as long as
+/// the signed-in area of the app is on screen.
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.child});
 
   final Widget child;
@@ -15,7 +20,9 @@ class HomeShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(geofenceNotificationListenerProvider);
+
     final location = GoRouterState.of(context).matchedLocation;
     return Scaffold(
       body: child,

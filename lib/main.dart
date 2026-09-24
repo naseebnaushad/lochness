@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/config/env.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,11 @@ Future<void> main() async {
     url: Env.supabaseUrl,
     publishableKey: Env.supabaseAnonKey,
   );
+
+  // Registers the plugin's platform channel once at startup; the
+  // NotificationService instances created later via Riverpod share the same
+  // underlying platform binding, so they don't need to re-initialize.
+  await NotificationService().init();
 
   runApp(const ProviderScope(child: LochnessApp()));
 }

@@ -8,6 +8,7 @@ import '../../features/circles/circles_screen.dart';
 import '../../features/circles/join_circle_screen.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/map/map_screen.dart';
+import '../../features/places/places_screen.dart';
 import '../../features/sharing/share_screen.dart';
 import '../providers.dart';
 
@@ -38,6 +39,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => CircleDetailScreen(
                   circleId: state.pathParameters['circleId']!,
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'places',
+                    builder: (context, state) => PlacesScreen(
+                      circleId: state.pathParameters['circleId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

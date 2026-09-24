@@ -20,17 +20,19 @@ lib/
   data/
     models/      plain Dart models mirroring the Supabase schema
     repositories/  one repository per table/feature, wraps supabase_flutter calls
-  services/      location tracking, geofencing, local notifications
+  services/      location tracking, geofence notification listener, local notifications
   features/
     auth/        sign in / sign up
-    circles/     create & list sharing groups ("Family", "Road trip")
+    circles/     create & list sharing groups, invite flow, manage members
     sharing/     duration picker + start/stop a location share
     map/         live map of everyone sharing with you
+    places/      geofenced places per circle (add/list/delete)
     home/        bottom-nav shell
 supabase/
   migrations/
     0001_init.sql             core schema + RLS policies
     0002_circle_invites.sql   invite codes + accept_circle_invite() RPC
+    0003_geofencing.sql       server-side arrival/departure detection
 ```
 
 ## Getting started
@@ -80,9 +82,8 @@ notification permissions once the platform folders exist:
   (see **Invite flow** below)
 - Start a share for 15 min / 1 hr / 8 hr / until turned off / forever
 - Live map of everyone currently sharing with you (Supabase Realtime)
-- Geofencing scaffolding (`Place` model, `GeofenceService`) for arrival/
-  departure notifications — wire it into a periodic check or a Supabase Edge
-  Function on `live_locations` writes to fully activate
+- Geofenced places per circle with arrival/departure notifications
+  (see **Geofencing** below)
 
 ## Invite flow
 
@@ -111,9 +112,50 @@ maintain `android/`/`ios/` platform config. Add a `app_links` (or
 `uni_links`) integration later if tapping a link should jump straight to
 the join screen.
 
+## Geofencing
+
+Arrival/departure detection runs **server-side**, not on the traveler's
+device, so it doesn't depend on that specific phone's app staying open or
+doing extra work:
+
+1. From a circle's detail screen, tap the pin icon in the app bar to open
+   **Places**, then **Add current location** while standing at the spot
+   you want to name (e.g. home, school). Pick a name and a notify radius
+   (50–500 m).
+2. Every time anyone's `live_locations` row is written (see
+   `LocationTrackingService`), the `evaluate_geofences_for_location`
+   Postgres trigger (`0003_geofencing.sql`) checks that user's new position
+   against every place in circles they're actively sharing to. Distance
+   uses a plain haversine calculation — no PostGIS extension required.
+3. A `geofence_state` table (server-only; RLS enabled with zero policies,
+   so it's invisible over the API) tracks whether each user was last known
+   to be inside each place, so the trigger only fires on true transitions,
+   not on every location ping. The very first ping for a place only ever
+   records an arrival (never a spurious departure) since there's no prior
+   state yet.
+4. Transitions are inserted into `geofence_events`, which only the trigger
+   (running `security definer`) can write — there is deliberately no
+   client-facing insert policy, so nobody can fake someone else's arrival.
+5. Every signed-in device with the app's authenticated area open
+   subscribes to `geofence_events` via Supabase Realtime
+   (`GeofenceNotificationListener`, kept alive by `HomeShell`) and raises a
+   local notification ("Mom arrived Home") for anyone else's transition in
+   a shared circle.
+
+**Limitation:** step 5 only reaches a device that has an open Realtime
+connection — foreground or backgrounded, not fully killed. Waking a killed
+app requires real push delivery (FCM/APNs) triggered from a Supabase Edge
+Function on `geofence_events` inserts, plus a `device_push_tokens` table to
+know where to send it. That's real infrastructure (a Firebase project or
+APNs certs) beyond what this scaffold sets up; the trigger-based detection
+above is already the harder, more valuable half, and swapping the delivery
+mechanism later doesn't touch it.
+
 ## Not yet built
 
-- OS-level deep linking for invite codes (see above)
+- OS-level deep linking for invite codes (see **Invite flow** above)
+- Push notifications for geofence events when the app is fully killed
+  (see **Geofencing** above)
 - True background tracking when the app is killed (see the note in
   `LocationTrackingService` — plug in platform foreground services or a
   package such as `flutter_background_geolocation` for this)
