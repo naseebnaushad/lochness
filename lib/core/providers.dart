@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/models/circle.dart';
+import '../data/models/circle_invite.dart';
 import '../data/models/live_location.dart';
+import '../data/models/profile.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/circle_repository.dart';
 import '../data/repositories/location_repository.dart';
@@ -66,4 +68,16 @@ final myCirclesProvider = FutureProvider<List<Circle>>((ref) async {
 /// Live positions of everyone who is currently sharing with the caller.
 final visibleLocationsProvider = StreamProvider<List<LiveLocation>>((ref) {
   return ref.watch(locationRepositoryProvider).watchVisibleLocations();
+});
+
+final circleProvider = FutureProvider.family<Circle, String>((ref, circleId) {
+  return ref.watch(circleRepositoryProvider).fetchCircle(circleId);
+});
+
+final circleMembersProvider = FutureProvider.family<List<Profile>, String>((ref, circleId) {
+  return ref.watch(circleRepositoryProvider).fetchMembers(circleId);
+});
+
+final circleInvitesProvider = FutureProvider.family<List<CircleInvite>, String>((ref, circleId) {
+  return ref.watch(circleRepositoryProvider).fetchInvites(circleId);
 });

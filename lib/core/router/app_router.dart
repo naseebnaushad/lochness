@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/sign_in_screen.dart';
+import '../../features/circles/circle_detail_screen.dart';
 import '../../features/circles/circles_screen.dart';
+import '../../features/circles/join_circle_screen.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/map/map_screen.dart';
 import '../../features/sharing/share_screen.dart';
@@ -22,11 +24,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/sign-in', builder: (context, state) => const SignInScreen()),
+      GoRoute(path: '/join', builder: (context, state) => const JoinCircleScreen()),
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),
         routes: [
           GoRoute(path: '/map', builder: (context, state) => const MapScreen()),
-          GoRoute(path: '/circles', builder: (context, state) => const CirclesScreen()),
+          GoRoute(
+            path: '/circles',
+            builder: (context, state) => const CirclesScreen(),
+            routes: [
+              GoRoute(
+                path: ':circleId',
+                builder: (context, state) => CircleDetailScreen(
+                  circleId: state.pathParameters['circleId']!,
+                ),
+              ),
+            ],
+          ),
           GoRoute(path: '/share', builder: (context, state) => const ShareScreen()),
         ],
       ),

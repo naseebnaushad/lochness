@@ -28,7 +28,9 @@ lib/
     map/         live map of everyone sharing with you
     home/        bottom-nav shell
 supabase/
-  migrations/0001_init.sql   full schema + RLS policies
+  migrations/
+    0001_init.sql             core schema + RLS policies
+    0002_circle_invites.sql   invite codes + accept_circle_invite() RPC
 ```
 
 ## Getting started
@@ -46,8 +48,8 @@ flutter pub get
 Set up Supabase:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run `supabase/migrations/0001_init.sql` in the SQL editor (or via
-   `supabase db push` if you use the Supabase CLI).
+2. Run the migrations in `supabase/migrations/`, in order, in the SQL
+   editor (or via `supabase db push` if you use the Supabase CLI).
 3. Enable email/password auth under Authentication settings (or swap in
    whatever provider you prefer — the `AuthRepository` only needs updating
    in one place).
@@ -74,18 +76,44 @@ notification permissions once the platform folders exist:
 ## Current scope (MVP)
 
 - Email/password auth
-- Create circles and share a location with one
+- Create circles, view members, and invite people by shareable code
+  (see **Invite flow** below)
 - Start a share for 15 min / 1 hr / 8 hr / until turned off / forever
 - Live map of everyone currently sharing with you (Supabase Realtime)
 - Geofencing scaffolding (`Place` model, `GeofenceService`) for arrival/
   departure notifications — wire it into a periodic check or a Supabase Edge
   Function on `live_locations` writes to fully activate
 
+## Invite flow
+
+Circle membership never requires knowing someone else's user id:
+
+1. From a circle's detail screen (`/circles/:id`), tap **Invite** and pick
+   an expiry (7 days / 30 days / never). This inserts a row into
+   `circle_invites` with a server-generated 8-character code (via
+   `generate_invite_code()` in `0002_circle_invites.sql`) and opens the
+   platform share sheet (`share_plus`) with the code pre-filled into a
+   message.
+2. The recipient opens **Circles → the code icon in the app bar** (`/join`),
+   types the code, and taps Join.
+3. The client calls the `accept_circle_invite(invite_code)` Postgres
+   function (`CircleRepository.joinByCode`), which runs as `security
+   definer` so it can validate the code (not revoked, not expired, under
+   its use cap) and insert the `circle_members` row itself — the invitee
+   never needs direct insert access to that table.
+4. A code is reusable by anyone it's shared with until the owner or
+   creator revokes it (trash icon on the invite tile) or it expires.
+
+This intentionally ships without OS-level deep linking (no
+`lochness://invite/CODE` intent filter) — copy/paste or share-sheet text
+covers the "share with family" case without needing to commit and
+maintain `android/`/`ios/` platform config. Add a `app_links` (or
+`uni_links`) integration later if tapping a link should jump straight to
+the join screen.
+
 ## Not yet built
 
-- Invite flow (currently `CircleRepository.inviteMember` takes a raw user
-  id — needs an invite-link/QR flow so people don't need to know each
-  other's UUIDs)
+- OS-level deep linking for invite codes (see above)
 - True background tracking when the app is killed (see the note in
   `LocationTrackingService` — plug in platform foreground services or a
   package such as `flutter_background_geolocation` for this)

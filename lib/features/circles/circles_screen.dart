@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
 
@@ -39,14 +40,23 @@ class CirclesScreen extends ConsumerWidget {
     final circlesAsync = ref.watch(myCirclesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your circles')),
+      appBar: AppBar(
+        title: const Text('Your circles'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2_outlined),
+            tooltip: 'Join with a code',
+            onPressed: () => context.push('/join'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _createCircle(context, ref),
         child: const Icon(Icons.add),
       ),
       body: circlesAsync.when(
         data: (circles) => circles.isEmpty
-            ? const Center(child: Text('No circles yet. Tap + to create one.'))
+            ? const Center(child: Text('No circles yet. Tap + to create one, or join one with a code.'))
             : ListView.builder(
                 itemCount: circles.length,
                 itemBuilder: (context, index) {
@@ -54,6 +64,8 @@ class CirclesScreen extends ConsumerWidget {
                   return ListTile(
                     leading: const Icon(Icons.groups_outlined),
                     title: Text(circle.name),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/circles/${circle.id}'),
                   );
                 },
               ),
