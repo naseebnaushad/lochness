@@ -6,7 +6,9 @@ import '../../core/providers.dart';
 
 /// Bottom-nav shell wrapping the three main tabs: Map, Circles, Share.
 /// Also keeps [geofenceNotificationListenerProvider] alive for as long as
-/// the signed-in area of the app is on screen.
+/// the signed-in area of the app is on screen, and registers the device for
+/// push notifications via [pushRegistrationProvider] (a no-op if Firebase
+/// isn't configured).
 class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.child});
 
@@ -22,6 +24,7 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(geofenceNotificationListenerProvider);
+    ref.watch(pushRegistrationProvider);
 
     final location = GoRouterState.of(context).matchedLocation;
     return Scaffold(

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/config/firebase_env.dart';
 import '../data/models/circle.dart';
 import '../data/models/circle_invite.dart';
 import '../data/models/live_location.dart';
@@ -10,9 +11,11 @@ import '../data/repositories/auth_repository.dart';
 import '../data/repositories/circle_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/place_repository.dart';
+import '../data/repositories/push_token_repository.dart';
 import '../services/geofence_notification_listener.dart';
 import '../services/location_tracking_service.dart';
 import '../services/notification_service.dart';
+import '../services/push_notification_service.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -36,6 +39,27 @@ final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
+});
+
+final pushTokenRepositoryProvider = Provider<PushTokenRepository>((ref) {
+  return PushTokenRepository(ref.watch(supabaseClientProvider));
+});
+
+final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+  return PushNotificationService(pushTokenRepository: ref.watch(pushTokenRepositoryProvider));
+});
+
+/// Registers this device for FCM push as soon as something watches this
+/// provider (see [HomeShell]) and Firebase has been configured via
+/// --dart-define (see [FirebaseEnv]). Unregisters (deleting the device's
+/// token) when nothing watches it anymore, e.g. after sign-out.
+final pushRegistrationProvider = FutureProvider.autoDispose<void>((ref) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null || !FirebaseEnv.isConfigured) return;
+
+  final service = ref.watch(pushNotificationServiceProvider);
+  await service.registerForUser(userId);
+  ref.onDispose(service.unregister);
 });
 
 final locationTrackingServiceProvider = Provider<LocationTrackingService>((ref) {

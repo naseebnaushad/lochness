@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lochness/core/config/firebase_env.dart';
 import 'package:lochness/core/theme/app_theme.dart';
 import 'package:lochness/data/models/circle_invite.dart';
 import 'package:lochness/data/models/geofence_event.dart';
@@ -81,5 +82,9 @@ void main() {
     );
     expect(arrival.isArrival, isTrue);
     expect(departure.isArrival, isFalse);
+  });
+
+  test('FirebaseEnv.isConfigured is false without dart-defines', () {
+    expect(FirebaseEnv.isConfigured, isFalse);
   });
 }

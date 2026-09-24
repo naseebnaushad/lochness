@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart' show Share;
+import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus;
 
 import '../../core/providers.dart';
 import '../../data/models/circle_invite.dart';
@@ -88,9 +88,11 @@ class CircleDetailScreen extends ConsumerWidget {
 
     if (!context.mounted) return;
     final circleName = ref.read(circleProvider(circleId)).valueOrNull?.name ?? 'my circle';
-    await Share.share(
-      'Join "$circleName" on Lochness! Open the app, tap Circles > '
-      'Join with a code, and enter: ${invite.code}',
+    await SharePlus.instance.share(
+      ShareParams(
+        text: 'Join "$circleName" on Lochness! Open the app, tap Circles > '
+            'Join with a code, and enter: ${invite.code}',
+      ),
     );
   }
 }

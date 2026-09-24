@@ -33,6 +33,9 @@ supabase/
     0001_init.sql             core schema + RLS policies
     0002_circle_invites.sql   invite codes + accept_circle_invite() RPC
     0003_geofencing.sql       server-side arrival/departure detection
+    0004_push_notifications.sql  device_push_tokens + push trigger (pg_net)
+  functions/
+    send-geofence-push/      Edge Function: sends the FCM push for a geofence event
 ```
 
 ## Getting started
@@ -74,6 +77,9 @@ notification permissions once the platform folders exist:
 - **iOS**: `NSLocationWhenInUseUsageDescription`,
   `NSLocationAlwaysAndWhenInUseUsageDescription`, and the "Location updates"
   background mode in `Info.plist`.
+- If you set up push notifications (see below), also add the "Push
+  Notifications" and "Background Modes → Remote notifications" capabilities
+  in Xcode, and link an APNs key in the Firebase console.
 
 ## Current scope (MVP)
 
@@ -83,7 +89,8 @@ notification permissions once the platform folders exist:
 - Start a share for 15 min / 1 hr / 8 hr / until turned off / forever
 - Live map of everyone currently sharing with you (Supabase Realtime)
 - Geofenced places per circle with arrival/departure notifications
-  (see **Geofencing** below)
+  (see **Geofencing** below), optionally delivered by push even when the
+  recipient's app is fully killed (see **Push notifications** below)
 
 ## Invite flow
 
@@ -143,19 +150,61 @@ doing extra work:
    a shared circle.
 
 **Limitation:** step 5 only reaches a device that has an open Realtime
-connection — foreground or backgrounded, not fully killed. Waking a killed
-app requires real push delivery (FCM/APNs) triggered from a Supabase Edge
-Function on `geofence_events` inserts, plus a `device_push_tokens` table to
-know where to send it. That's real infrastructure (a Firebase project or
-APNs certs) beyond what this scaffold sets up; the trigger-based detection
-above is already the harder, more valuable half, and swapping the delivery
-mechanism later doesn't touch it.
+connection — foreground or backgrounded, not fully killed. See **Push
+notifications** below for the killed-app path.
+
+## Push notifications
+
+Reaching a fully-killed app needs real push delivery (FCM/APNs), not
+Realtime. This is wired up, but — unlike everything above — it needs a real
+Firebase project, which isn't something that can be created or verified in
+a sandboxed dev environment, so you'll need to do the one-time setup
+yourself:
+
+1. **Create a Firebase project** (console.firebase.google.com) and add an
+   Android app and/or iOS app to it. You don't need `google-services.json` /
+   `GoogleService-Info.plist` — `FirebaseOptions` are passed programmatically
+   via `--dart-define` (see `lib/core/config/firebase_env.dart`), the same
+   pattern already used for Supabase credentials:
+   ```bash
+   flutter run \
+     --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... \
+     --dart-define=FIREBASE_API_KEY=... \
+     --dart-define=FIREBASE_APP_ID=... \
+     --dart-define=FIREBASE_MESSAGING_SENDER_ID=... \
+     --dart-define=FIREBASE_PROJECT_ID=...
+   ```
+   (Values come from the app's config snippet in Firebase console settings.)
+   When these aren't set, push is simply skipped and everything else — 
+   including in-app geofence alerts — still works.
+2. Run migration `0004_push_notifications.sql`. It adds `device_push_tokens`
+   (RLS: users manage only their own row) and a trigger on `geofence_events`
+   that calls the Edge Function below via `pg_net` — but only once you've
+   stored its URL and a service-role key in Supabase Vault (see the
+   migration's comments), so it's a safe no-op until then.
+3. **Deploy the Edge Function**: `supabase functions deploy send-geofence-push`.
+   Generate a service account key in Firebase console (Project settings →
+   Service accounts → Generate new private key) and set its fields as
+   function secrets:
+   ```bash
+   supabase secrets set FCM_PROJECT_ID=... FCM_CLIENT_EMAIL=... \
+     FCM_PRIVATE_KEY="$(jq -r .private_key service-account.json)"
+   ```
+   Then run the two `vault.create_secret(...)` calls from the migration's
+   comments with your function's URL and a service-role key.
+4. On the client, `PushNotificationService` (started from
+   `pushRegistrationProvider`, watched by `HomeShell`) requests notification
+   permission, gets an FCM token, and upserts it into `device_push_tokens`
+   whenever someone is signed in with Firebase configured; the token is
+   removed again on sign-out.
+5. The Edge Function looks up the other members of the geofence event's
+   circle, fetches their tokens, and sends an FCM v1 "notification" message
+   to each — which the OS displays directly even if the app isn't running,
+   with no extra background-handler code needed.
 
 ## Not yet built
 
 - OS-level deep linking for invite codes (see **Invite flow** above)
-- Push notifications for geofence events when the app is fully killed
-  (see **Geofencing** above)
 - True background tracking when the app is killed (see the note in
   `LocationTrackingService` — plug in platform foreground services or a
   package such as `flutter_background_geolocation` for this)
