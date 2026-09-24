@@ -20,7 +20,6 @@ class LocationTrackingService {
   final LocationRepository _locationRepository;
 
   StreamSubscription<Position>? _subscription;
-  String? _userId;
 
   bool get isTracking => _subscription != null;
 
@@ -38,7 +37,6 @@ class LocationTrackingService {
 
   Future<void> start(String userId) async {
     if (_subscription != null) return;
-    _userId = userId;
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.high,
@@ -64,6 +62,5 @@ class LocationTrackingService {
   Future<void> stop() async {
     await _subscription?.cancel();
     _subscription = null;
-    _userId = null;
   }
 }

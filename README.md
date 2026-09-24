@@ -33,9 +33,10 @@ supabase/
 
 ## Getting started
 
-This repo was hand-scaffolded (no Flutter SDK in the environment that
-created it), so the platform folders (`android/`, `ios/`, `web/`, etc.)
-haven't been generated yet. To bootstrap locally:
+Platform folders (`android/`, `ios/`, `linux/`, `web/`, etc.) are
+gitignored and generated locally, not committed. `flutter analyze`,
+`flutter test`, and a `flutter build linux --debug` have all been run
+against this scaffold and pass. To bootstrap on your machine:
 
 ```bash
 flutter create . --project-name lochness --org com.lochness
