@@ -1,0 +1,28 @@
+*.iml
+*.class
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# IDE
+.idea/
+.vscode/
+
+# Env / secrets
+.env
+*.env
+
+# Platform build dirs
+/android/
+/ios/
+/macos/
+/linux/
+/windows/
+/web/
+
+.DS_Store
